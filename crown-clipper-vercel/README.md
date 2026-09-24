@@ -1,21 +1,33 @@
-# Crown & Clipper — Vercel public site
+# Crown & Clipper Barber Co.
 
-This is the Next.js source for the public Crown & Clipper site. It is designed for the existing Vercel Hobby project at https://crown-and-clipper-barber.vercel.app.
+Public website: [crown-and-clipper-barber.vercel.app](https://crown-and-clipper-barber.vercel.app).
 
-## How it works
+## Run locally
 
-- The public pages and calendar render on Vercel.
-- The photo manifest and JPGs are read through the Vercel API from the existing GPT photo manager. The `Manage photos` link redirects to https://crown-and-clipper-barber.otttt.chatgpt.site/photos. Updating a photo there updates what the Vercel site displays after its short image cache expires.
-- The booking form sends requests through a Vercel API route to the existing booking service on that GPT site. The same Sunday closure and opening hours are enforced there.
-- The `Maybe later` button closes the welcome offer and remembers the choice on the visitor's device.
+The Vercel project root is `crown-clipper-vercel/` within the GitHub repository.
 
-This arrangement depends on both public hosts remaining available. No Upstash, Vercel Blob or image password is needed on Vercel. To change the GPT site address, edit `lib/photo-source.ts` and redeploy.
+```bash
+cd crown-clipper-vercel
+npm ci
+npm run dev
+```
 
-## Deploy from GitHub
+Open `http://localhost:3000`. If port 3000 is already in use, stop the other server or run `npm run dev -- -p 3001`.
 
-1. Push this directory to a GitHub repository. The included `.gitignore` excludes local builds and environment files.
-2. In the existing Vercel project, choose **Connect Git** and select the repository.
-3. Keep the framework preset as Next.js and the project root as the repository root.
-4. Deploy the `main` branch to Production. Later pushes to `main` can trigger new deployments.
+## Publishing
 
-This project is a fictional assessment business. The free Hobby plan has usage limits and cannot guarantee uninterrupted availability.
+Vercel deploys commits to the `main` branch of [lastnamelekabe/crown-and-clipper-barber](https://github.com/lastnamelekabe/crown-and-clipper-barber) automatically. The Vercel project's Root Directory must stay set to `crown-clipper-vercel`.
+
+## Photos and barber names
+
+[Manage photos and names](https://crown-and-clipper-barber.otttt.chatgpt.site/photos) uses the existing photo password. Upload JPG or JPEG photos of up to 5 MB. The About barber-at-work image should be at least 1000 × 700 pixels; portraits should be at least 800 × 900 pixels. A crisp 1536 × 1024 JPG is bundled as the About fallback image. Saved photo uploads take precedence over the fallback.
+
+Barber names saved in the photo manager appear on the About page and in the booking form. The public Vercel site reads photo and name data from the Sites backend through `/api/images` and `/api/team`; the password remains on that backend.
+
+## Booking and coupon
+
+Bookings are sent through Vercel to the Sites booking backend. Opening hours are Monday to Friday 09:00–18:30 and Saturday 08:30–17:00 (Africa/Johannesburg); Sunday is closed. The backend checks available slots before confirming a booking.
+
+`FIRSTCUT10` takes 10% off a customer's first confirmed booking. The backend validates the code and returns the actual total. Bookings, coupon use, and reserved time slots are stored in its D1 database. The Google Calendar and `.ics` links use the confirmed appointment time.
+
+The business details are fictional assessment content. Vercel Hobby is free within its usage limits and does not provide a 24/7 uptime guarantee.
