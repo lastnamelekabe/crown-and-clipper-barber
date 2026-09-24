@@ -72,7 +72,30 @@ document.addEventListener('DOMContentLoaded', () => {
   initServiceCards();
   initSiteImages();
   initPhotoManager();
+  initTeamNames();
 });
+
+async function initTeamNames() {
+  try {
+    const response = await fetch('/api/team');
+    if (!response.ok) return;
+    const names = await response.json();
+    document.querySelectorAll('[data-team-name]').forEach(el => {
+      if (names[el.dataset.teamName]) el.textContent = names[el.dataset.teamName];
+    });
+    document.querySelectorAll('[data-team-image]').forEach(el => {
+      if (names[el.dataset.teamImage]) el.alt = `${names[el.dataset.teamImage]}, barber`;
+    });
+    const barber = document.getElementById('barber');
+    if (barber) {
+      const selected = barber.value;
+      for (const [index,slot] of ['marcus','theo','lebo'].entries()) if (names[slot]) BARBERS[index].name = names[slot];
+      barber.innerHTML = `<option value="">Choose a barber</option>` + BARBERS.map(b => `<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)} — ${escapeHtml(b.role)}</option>`).join('');
+      barber.value = selected || '';
+    }
+    document.querySelectorAll('[data-edit-name]').forEach(input => { input.value = names[input.dataset.editName] || ''; });
+  } catch { /* Keep the default names if the service is unavailable. */ }
+}
 
 async function initSiteImages() {
   const images = document.querySelectorAll('[data-site-image]');
@@ -96,7 +119,24 @@ function initPhotoManager() {
     ['about-story', 'About: barber at work'], ['marcus', 'Marcus'],
     ['theo', 'Theo'], ['lebo', 'Lebron'], ['any-barber', 'Isaiah']
   ];
-  manager.innerHTML = slots.map(([slot, label]) => `<form class="photo-row" data-slot="${slot}"><label for="upload-${slot}">${label}</label><input id="upload-${slot}" type="file" accept=".jpg,.jpeg,image/jpeg"><div class="photo-preview-wrap"><img class="photo-preview ${['home-hero', 'home-tools', 'about-story'].includes(slot) ? 'wide' : 'portrait'}" alt="Preview of ${label}" hidden><label class="photo-focus" hidden>Move crop up/down <input type="range" min="0" max="100" value="50"></label></div><button class="btn btn-dark btn-small" type="submit">Upload photo</button><p class="photo-row-status" role="status" aria-live="polite"></p></form>`).join('');
+  manager.innerHTML = slots.map(([slot, label]) => `<form class="photo-row" data-slot="${slot}"><label for="upload-${slot}">${label}</label><input id="upload-${slot}" type="file" accept=".jpg,.jpeg,image/jpeg"><div class="photo-preview-wrap"><img class="photo-preview ${['home-hero', 'home-tools', 'about-story'].includes(slot) ? 'wide' : 'portrait'}" alt="Preview of ${label}" hidden><label class="photo-focus" hidden>Move crop up/down <input type="range" min="0" max="100" value="50"></label></div><button class="btn btn-dark btn-small" type="submit">Upload photo</button>${['marcus','theo','lebo','any-barber'].includes(slot) ? `<div class="name-edit"><label for="name-${slot}">Barber name</label><input id="name-${slot}" data-edit-name="${slot}" maxlength="40" autocomplete="off" required><button class="btn btn-outline btn-small" type="button" data-save-name>Save name</button></div>` : ''}<p class="photo-row-status" role="status" aria-live="polite"></p></form>`).join('');
+  manager.querySelectorAll('[data-save-name]').forEach(button => button.addEventListener('click', async () => {
+    const form=button.closest('form');
+    const status=form.querySelector('.photo-row-status');
+    const name=form.querySelector('[data-edit-name]').value.trim();
+    const password=document.getElementById('photoPassword').value;
+    if (!password) { status.textContent='Enter your image password above.'; return; }
+    if (!name) { status.textContent='Enter a barber name.'; return; }
+    button.disabled=true;
+    try {
+      const response=await fetch('/api/team',{method:'PUT',headers:{'Content-Type':'application/json','X-Admin-Password':password},body:JSON.stringify({slot:form.dataset.slot,name})});
+      const result=await response.json();
+      if (!response.ok) throw new Error(result.error||'Unable to save name');
+      status.textContent='Name saved. Refresh the About or booking page to see it.';
+      form.querySelector('label').textContent=name;
+    } catch(error) { status.textContent=error.message; }
+    finally { button.disabled=false; }
+  }));
   manager.querySelectorAll('form').forEach(form => {
     const input = form.querySelector('input[type=file]');
     const preview = form.querySelector('.photo-preview');
@@ -145,17 +185,10 @@ function initPhotoManager() {
 
 function initPopup() {
   const modal = document.getElementById('welcomeModal');
-  if (!modal) return;
-  let dismissed = false;
-  try { dismissed = localStorage.getItem('cc-popup-dismissed') === '1'; } catch { /* Storage can be disabled. */ }
-  if (dismissed) return;
-  const close = () => {
-    modal.classList.remove('open');
-    try { localStorage.setItem('cc-popup-dismissed', '1'); } catch { /* Closing still works without storage. */ }
-  };
+  if (!modal || localStorage.getItem('cc-popup-dismissed') === '1') return;
   setTimeout(() => modal.classList.add('open'), 4200);
-  modal.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', close));
-  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  modal.querySelector('[data-close]')?.addEventListener('click', () => { modal.classList.remove('open'); localStorage.setItem('cc-popup-dismissed', '1'); });
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.remove('open'); localStorage.setItem('cc-popup-dismissed', '1'); } });
 }
 
 function initServiceCards() {
@@ -216,7 +249,7 @@ function initBooking() {
 
       const service = SERVICES.find(s => s.name === payload.service);
       const end = addMinutesToTime(payload.date, payload.time, service?.minutes || 45);
-      const booking = { ...payload, barber: result.booking.barber, id: result.booking.id, duration: service?.minutes || 45, price: service?.price || 0, endTime: end };
+      const booking = { ...payload, barber: result.booking.barber, id: result.booking.id, duration: service?.minutes || 45, price: result.booking.total, endTime: end };
       localStorage.setItem('cc-last-booking', JSON.stringify(booking));
       renderSuccess(booking, formPanel, successPanel);
     } catch (err) {
@@ -273,7 +306,7 @@ function renderSuccess(booking, formPanel, successPanel) {
   successPanel.querySelector('[data-service]').textContent = booking.service;
   successPanel.querySelector('[data-barber]').textContent = booking.barber;
   successPanel.querySelector('[data-datetime]').textContent = `${formatDate(booking.date)} at ${formatTime(booking.time)}`;
-  successPanel.querySelector('[data-total]').textContent = `R${selected?.price || booking.price}`;
+  successPanel.querySelector('[data-total]').textContent = `R${booking.price ?? selected?.price ?? 0}${booking.coupon ? ' (FIRSTCUT10 applied)' : ''}`;
 
   const googleBtn = successPanel.querySelector('[data-google]');
   const icsBtn = successPanel.querySelector('[data-ics]');
