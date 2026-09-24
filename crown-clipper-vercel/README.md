@@ -20,7 +20,7 @@ Vercel deploys commits to the `main` branch of [lastnamelekabe/crown-and-clipper
 
 ## Photos and barber names
 
-[Manage photos and names](https://crown-and-clipper-barber.otttt.chatgpt.site/photos) uses the existing photo password. Upload JPG or JPEG photos of up to 5 MB. The About barber-at-work image should be at least 1000 × 700 pixels; portraits should be at least 800 × 900 pixels. A crisp 1536 × 1024 JPG is bundled as the About fallback image. Saved photo uploads take precedence over the fallback.
+[Manage photos and names](https://crown-and-clipper-barber.otttt.chatgpt.site/photos) uses the existing photo password. Upload JPG or JPEG photos of up to 5 MB. The About barber-at-work image must be landscape, at least 1000 × 700 pixels and at least 1.2 times wider than it is tall; portraits should be at least 800 × 900 pixels. An old portrait upload in the About slot falls back to the bundled landscape JPG. A crisp 1536 × 1024 JPG is bundled as the About fallback image. Saved photo uploads take precedence over the fallback.
 
 Barber names saved in the photo manager appear on the About page and in the booking form. The public Vercel site reads photo and name data from the Sites backend through `/api/images` and `/api/team`; the password remains on that backend.
 

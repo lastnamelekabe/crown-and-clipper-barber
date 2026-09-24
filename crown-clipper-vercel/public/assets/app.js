@@ -106,7 +106,21 @@ async function initSiteImages() {
     const uploaded = await response.json();
     images.forEach(img => {
       const choice = uploaded[img.dataset.siteImage];
-      if (choice) { img.src = choice.url; img.style.objectPosition = `50% ${choice.position}%`; }
+      if (choice) {
+        const fallback = img.getAttribute('src');
+        if (img.dataset.siteImage === 'about-story') {
+          img.onload = () => {
+            if (img.naturalWidth < 1000 || img.naturalHeight < 700 || img.naturalWidth / img.naturalHeight < 1.2) {
+              img.onload = null;
+              img.src = fallback;
+              img.style.objectPosition = '';
+            }
+          };
+          img.onerror = () => { img.onload = img.onerror = null; img.src = fallback; };
+        }
+        img.src = choice.url;
+        img.style.objectPosition = `50% ${choice.position}%`;
+      }
     });
   } catch { /* Keep the existing picture when offline. */ }
 }
@@ -165,6 +179,7 @@ function initPhotoManager() {
     try { await preview.decode(); } catch { status.textContent = 'This file is not a readable image.'; return; }
     const wide = ['home-hero', 'home-tools', 'about-story'].includes(form.dataset.slot);
     if (wide && (preview.naturalWidth < 1000 || preview.naturalHeight < 700)) { status.textContent = 'For this section, choose a clear photo at least 1000 × 700 pixels.'; return; }
+    if (wide && preview.naturalWidth / preview.naturalHeight < 1.2) { status.textContent = 'Choose a landscape JPG for this wide section. Portrait photos will crop too much.'; return; }
     if (!wide && (preview.naturalWidth < 800 || preview.naturalHeight < 900)) { status.textContent = 'For barber profiles, choose a clear photo at least 800 × 900 pixels.'; return; }
     const button = form.querySelector('button');
     button.disabled = true;
